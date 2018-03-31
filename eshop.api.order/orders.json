@@ -2,130 +2,31 @@
   {
     "OrderId": "99d5f84b-fb54-4333-9fc6-018d19cd53fa",
     "CustomerId": "8e5b300f-3387-4487-ba27-c8c80fbafae8",
-    "Status": "0",
-    "TotalPrice": "",
-    "Articles": [
-      {
-        "ArticleId": "Art1",
-        "Quantity": 3,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art2",
-        "Quantity": 6,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art3",
-        "Quantity": 6,
-        "Price": "",
-        "TotalPrice": ""
-      }
-    ]
+    "Status": 1,
+    "OrderTotalPrice": 0.0,
+    "Articles": []
   },
   {
     "OrderId": "e20d9e86-a810-4dab-bd0c-6409a1387ceb",
     "CustomerId": "8e5b300f-3387-4487-ba27-c8c80fbafae8",
-    "Status": "0",
-    "TotalPrice": "",
-    "Articles": [
-      {
-        "ArticleId": "Art1",
-        "Quantity": 1,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art2",
-        "Quantity": 3,
-        "Price": "",
-        "TotalPrice": ""
-      }
-    ]
+    "Status": 2,
+    "OrderTotalPrice": 0.0,
+    "Articles": []
   },
   {
-    "OrderId": "47a9db86-93e2-4d69-b878-4883f309c301",
-    "CustomerId": "8e5b300f-3387-4487-ba27-c8c80fbafae8",
-    "Status": "1",
-    "TotalPrice": "",
-    "Articles": [
-      {
-        "ArticleId": "Art10",
-        "Quantity": 10,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art11",
-        "Quantity": 6,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art12",
-        "Quantity": 6,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art13",
-        "Quantity": 3,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art14",
-        "Quantity": 6,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art15",
-        "Quantity": 6,
-        "Price": "",
-        "TotalPrice": ""
-      }
-    ]
-  },
-  {
-    "OrderId": "1f91da24-9590-42c2-b4c8-051b0753b6c3",
+    "OrderId": "bf69755d-6523-4279-87db-a2c623286fe3",
     "CustomerId": "a40da23d-a089-483a-a90f-956880d963dd",
-    "Status": "1",
-    "TotalPrice": "",
+    "Status": 1,
+    "OrderTotalPrice": 35.0,
     "Articles": [
       {
-        "ArticleId": "Art1",
-        "Quantity": 1,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art10",
-        "Quantity": 100,
-        "Price": "",
-        "TotalPrice": ""
-      }
-    ]
-  },
-  {
-    "OrderId": "f1ee51ea-564c-4863-baa5-df61477ebe3f",
-    "CustomerId": "a40da23d-a089-483a-a90f-956880d963dd",
-    "Status": "1",
-    "TotalPrice": "",
-    "Articles": [
-      {
-        "ArticleId": "Art10",
-        "Quantity": 10,
-        "Price": "",
-        "TotalPrice": ""
-      },
-      {
-        "ArticleId": "Art11",
-        "Quantity": 11,
-        "Price": "",
-        "TotalPrice": ""
+        "ArticleId": 1,
+        "ArticleName": "Article1",
+        "ArticleDescription": "GoodDay Biscuit",
+        "ArticlePrice": 5.5,
+        "TotalPrice": 22.0,
+        "ImageUrl": null,
+        "Quantity": 4
       }
     ]
   }

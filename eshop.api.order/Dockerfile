@@ -5,4 +5,4 @@ COPY *.csproj /app
 RUN dotnet restore
 COPY . /app
 CMD [ "dotnet", "run" ]
-EXPOSE 8080
+EXPOSE 8003

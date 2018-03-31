@@ -8,6 +8,13 @@ using System;
 
 namespace eshop.api.order.Controllers
 {
+    enum OrderStatus
+    {
+        Active = 1,
+        Pending,
+        Submitted
+    }
+
     [Route("api/[controller]")]
     public class OrdersController : Controller
     {
@@ -70,11 +77,15 @@ namespace eshop.api.order.Controllers
                 return NotFound($"Order with Id - {orderId} and customer id - {customerId} not found");
             }
 
-            return new ObjectResult(order);
-            
+            JObject successobj = new JObject()
+                {
+                    { "StatusMessage", $"Order Details Fetched for Order Id {order.OrderId}" },
+                    { "Order", JObject.Parse(JsonConvert.SerializeObject(order)) }
+                };
+            return Ok(successobj);            
         }
 
-        // POST api/values
+        // POST api/orders
         [HttpPost]
         public IActionResult AddNewOrder([FromBody]JObject value)
         {
@@ -85,15 +96,34 @@ namespace eshop.api.order.Controllers
             }
 
             Order newOrder = null;
+            string responseMsg = string.Empty;
             try
             {
-                // create new order object for specific customer
-                newOrder = JsonConvert.DeserializeObject<Order>(value.ToString());
-                newOrder.OrderId = Guid.NewGuid().ToString();
+                Order activeOrder = GetActiveOrderForCustomer(customerId);
 
-                // add new customer to list
-                orders.Add(newOrder);
-                WriteToFile();
+                if (activeOrder == null)
+                {
+                    // create new order object for specific customer
+                    newOrder = JsonConvert.DeserializeObject<Order>(value.ToString());
+                    newOrder.OrderId = Guid.NewGuid().ToString();
+
+                    // add new customer to list
+                    orders.Add(newOrder);
+                    WriteToFile();
+                    responseMsg = $"Order created successfully for customer id { newOrder.CustomerId}";
+                }
+                else
+                {
+                    newOrder = activeOrder;
+                    responseMsg = $"One Order already active for customer id { newOrder.CustomerId}";
+                }
+                JObject successobj = new JObject()
+                {
+                    { "StatusMessage", responseMsg },
+                    { "OrderId", newOrder.OrderId.ToString() }
+                };
+                return Ok(successobj);
+
             }
             catch (System.Exception ex)
             {
@@ -101,18 +131,20 @@ namespace eshop.api.order.Controllers
                 // internal server errror
                 return StatusCode(500, ex.Message);
             }
-            JObject successobj = new JObject()
-            {
-                { "StatusMessage", $"Order created successfully for customer id {newOrder.CustomerId}" },
-                { "NewOrderId", newOrder.OrderId.ToString() }
-            };
-            return Ok(successobj);
+          
+        }
+
+        private Order GetActiveOrderForCustomer(string customerId)
+        {
+            Order activeOrder = orders.Find(o => o.CustomerId == customerId && o.Status == Convert.ToInt32(OrderStatus.Active));
+            return activeOrder;
         }
 
         [HttpPost]
-        [Route("{id}/articles")]
-        public IActionResult AddArticlesToOrder(string id, [FromBody]JArray value)
+        [Route("{orderid}/articles")]
+        public IActionResult AddArticlesToOrder(string orderid, [FromBody]JObject value)
         {
+            Order orderToUpdate = null;
             string customerId = Convert.ToString(Request.Headers["customerId"]);
             if (customerId == null)
             {
@@ -121,13 +153,32 @@ namespace eshop.api.order.Controllers
 
             try
             {
-                // Add articles to specific order object for specific customer
-                List<Article> articles = JsonConvert.DeserializeObject<List<Article>>(value.ToString());
+                // Add article to specific order object for specific customer
+                Article article = JsonConvert.DeserializeObject<Article>(value.ToString());
 
-                Order orderToUpdate = orders.Find(o => o.CustomerId == customerId && o.OrderId == id);
-                orderToUpdate.Articles.AddRange(articles);
+
+                orderToUpdate = orders.Find(o => o.CustomerId == customerId && o.OrderId == orderid);
+
+                if(orderToUpdate == null)
+                {
+                    return NotFound($"Order with {orderid} for customer {customerId} not found");
+                }
+
+                // update the price and quantity if the article already exists in the order else add new article
+                UpdateOrderArticles(ref orderToUpdate, article);
+                
+                // update order total price
+                UpdateOrderTotalPrice(ref orderToUpdate);
                 
                 WriteToFile();
+
+                JObject successobj = new JObject()
+                {
+                    { "StatusMessage", $"Articles added successfully for order id {orderid} and customer id {customerId}" },
+                    { "Order", JObject.Parse(JsonConvert.SerializeObject(orderToUpdate)) }
+                };
+
+                return Ok(successobj);
             }
             catch (System.Exception ex)
             {
@@ -135,12 +186,34 @@ namespace eshop.api.order.Controllers
                 // internal server errror
                 return StatusCode(500, ex.Message);
             }
-            return Ok($"Articles added successfully for order id {id} and customer id {customerId}");
         }
+
+        private void UpdateOrderTotalPrice(ref Order orderToUpdate)
+        {
+            orderToUpdate.OrderTotalPrice = orderToUpdate.Articles.Sum(a => a.TotalPrice);
+        }
+
+        private void UpdateOrderArticles(ref Order orderToUpdate, Article article)
+        {
+            Article articleToUpdate = orderToUpdate.Articles.Find(a => a.ArticleId == article.ArticleId);
+            if (articleToUpdate == null)
+            {
+                article.TotalPrice = article.Quantity * article.ArticlePrice;
+                orderToUpdate.Articles.Add(article);
+            }
+            else
+            {
+                // update quantity and total article price
+                articleToUpdate.Quantity = articleToUpdate.Quantity + article.Quantity;
+                articleToUpdate.TotalPrice = articleToUpdate.Quantity * articleToUpdate.ArticlePrice;
+            }
+
+        }
+        
 
         [HttpDelete]
         [Route("{orderid}/articles/{articleid}")]
-        public IActionResult RemoveArticleFromOrder(string orderid, string articleid)
+        public IActionResult RemoveArticleFromOrder(string orderid, int articleid)
         {
             string customerId = Convert.ToString(Request.Headers["customerId"]);
             if (customerId == null)
@@ -158,43 +231,19 @@ namespace eshop.api.order.Controllers
                 {
                     return NotFound($"Article id - {articleid} not found for order id - {orderid} and customerId - {customerId}");
                 }
+                // reduce the total order cost
+                orderToRemoveArticleFrom.OrderTotalPrice = orderToRemoveArticleFrom.OrderTotalPrice - article.TotalPrice;
                 orderToRemoveArticleFrom.Articles.Remove(article);
 
                 WriteToFile();
-            }
-            catch (System.Exception ex)
-            {
-                // log the exception
-                // internal server errror
-                return StatusCode(500, ex.Message);
-            }
-            return Ok($"Article with id {articleid} deleted successfully from order id {orderid} and customer id {customerId}");
-        }
 
-        [HttpPut]
-        [Route("{orderid}/articles/{articleid}")]
-        public IActionResult UpdateArticleFromOrder(string orderid, string articleid, [FromBody]JObject value)
-        {
-            string customerId = Convert.ToString(Request.Headers["customerId"]);
-            if (customerId == null)
-            {
-                return BadRequest("Customer Id missing in the header");
-            }
-
-            try
-            {
-                Order orderToUpdateArticle = orders.Find(o => o.CustomerId == customerId && o.OrderId == orderid);
-
-                Article article = orderToUpdateArticle.Articles.Find(a => a.ArticleId == articleid);
-                if (article == null)
+                JObject successobj = new JObject()
                 {
-                    return NotFound($"Article with id - {articleid} not found for order - {orderid} and customer id- {customerId}");
-                }
-                int quantity;
-                int.TryParse(value["Quantity"].ToString(), out quantity);
-                article.Quantity = quantity;
+                    { "StatusMessage", $"Article with id {articleid} deleted successfully from order id {orderid} and customer id {customerId}" },
+                    { "Order", JObject.Parse(JsonConvert.SerializeObject(orderToRemoveArticleFrom)) }
+                };
 
-                WriteToFile();
+                return Ok(successobj);
             }
             catch (System.Exception ex)
             {
@@ -202,13 +251,49 @@ namespace eshop.api.order.Controllers
                 // internal server errror
                 return StatusCode(500, ex.Message);
             }
-            return Ok($"Article with id {articleid} updated quantity successfully from order id {orderid} and customer id {customerId}");
         }
+
+        //[HttpPut]
+        //[Route("{orderid}/articles/{articleid}")]
+        //public IActionResult UpdateArticleFromOrder(string orderid, string articleid, [FromBody]JObject value)
+        //{
+        //    string customerId = Convert.ToString(Request.Headers["customerId"]);
+        //    if (customerId == null)
+        //    {
+        //        return BadRequest("Customer Id missing in the header");
+        //    }
+
+        //    try
+        //    {
+        //        Order orderToUpdateArticle = orders.Find(o => o.CustomerId == customerId && o.OrderId == orderid);
+
+        //        Article article = orderToUpdateArticle.Articles.Find(a => a.ArticleId == articleid);
+        //        if (article == null)
+        //        {
+        //            return NotFound($"Article with id - {articleid} not found for order - {orderid} and customer id- {customerId}");
+        //        }
+        //        int quantity;
+        //        int.TryParse(value["Quantity"].ToString(), out quantity);
+        //        article.Quantity = quantity;
+        //        // TODO: increment quantiy and also update article price and total price accrodingly
+
+        //        WriteToFile();
+        //    }
+        //    catch (System.Exception ex)
+        //    {
+        //        // log the exception
+        //        // internal server errror
+        //        return StatusCode(500, ex.Message);
+        //    }
+        //    return Ok($"Article with id {articleid} updated quantity successfully from order id {orderid} and customer id {customerId}");
+        //}
 
         // PUT api/values/5
-        [HttpPut("{id}")]
-        public IActionResult Put(string id, [FromBody]JObject value)
+        [HttpPut("{orderid}")]
+        public IActionResult UpdateOrderStatus(string orderid, JObject status)
         {
+            // TODO: this can be used to update status
+            
             string customerId = Convert.ToString(Request.Headers["customerId"]);
             if (customerId == null)
             {
@@ -217,18 +302,23 @@ namespace eshop.api.order.Controllers
 
             try
             {
+                Order order = orders.Find(o => o.OrderId == orderid && o.CustomerId == customerId);
 
-                int index = orders.IndexOf(orders.Find(x => x.OrderId == id));
-                orders.Remove(orders.Find(x => x.OrderId == id));
-                orders.Insert(index, JsonConvert.DeserializeObject<Order>(value.ToString()));
+                if(order == null)
+                {
+                    return NotFound($"Order with Id - {orderid} for customer {customerId} not found");
+                }
+                var statusJson = JsonConvert.DeserializeObject<dynamic>(status.ToString());
+
+                order.Status = statusJson.status;
                 WriteToFile();
+                return Ok($"Status updated successfully for Order with Id - {orderid}");
             }
             catch (System.Exception ex)
             {
                 // log error/exception
                 return StatusCode(500, ex.Message);
             }
-            return Ok($"Order with Id - {id} updated successfully");            
         }
 
         // DELETE api/order/5
@@ -244,13 +334,13 @@ namespace eshop.api.order.Controllers
                 }
                 orders.Remove(order);
                 WriteToFile();
+                return Ok($"Order with Id - {orderid} deleted successfully");
             }
             catch (System.Exception ex)
             {
                 // log the exception
                 return StatusCode(500, ex.Message);
             }
-            return Ok($"Order with Id - {orderid} deleted successfully");            
         }
     }
 }

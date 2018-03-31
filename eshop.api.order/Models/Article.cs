@@ -2,9 +2,12 @@
 {
     public class Article
     {
-        public string ArticleId { get; set; }
+        public int ArticleId { get; set; }
+        public string ArticleName { get; set; }
+        public string ArticleDescription { get; set; }
+        public double ArticlePrice { get; set; }
+        public double TotalPrice { get; set; }
+        public string ImageUrl { get; set; }
         public int Quantity { get; set; }
-        public string Price { get; set; }
-        public string TotalPrice { get; set; }
     }
 }

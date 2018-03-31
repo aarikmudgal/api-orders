@@ -12,7 +12,7 @@ namespace eshop.api.order
 
         public static IWebHost BuildWebHost(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
-                .UseUrls("http://*:8080")
+                .UseUrls("http://*:8003")
                 .UseStartup<Startup>()
                 .Build();
     }
