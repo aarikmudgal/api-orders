@@ -27,6 +27,9 @@ namespace eshop.api.order
             {
                 app.UseDeveloperExceptionPage();
             }
+            
+            // Shows UseCors with CorsPolicyBuilder.
+            app.UseCors(builder => builder.WithOrigins("http://35.200.145.203").AllowAnyMethod().AllowAnyHeader().AllowCredentials());
 
             app.UseMvc();
         }
