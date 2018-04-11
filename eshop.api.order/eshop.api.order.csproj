@@ -6,18 +6,41 @@
 
   <ItemGroup>
     <Compile Remove="Controllers\ValuesController.cs" />
+    <Compile Remove="Migrations\20180329045359_IntialMigration.cs" />
+    <Compile Remove="Migrations\20180329045359_IntialMigration.Designer.cs" />
+    <Compile Remove="Migrations\OrderContextModelSnapshot.cs" />
+    <Compile Remove="Models\Article.cs" />
+    <Compile Remove="Models\Article\ArticleOrdered.cs" />
+    <Compile Remove="Models\Article\ArticleOrderedContext.cs" />
+    <Compile Remove="Models\Order.cs" />
+    <Compile Remove="Models\Order\Order.cs" />
+    <Compile Remove="Models\Order\OrderContext.cs" />
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Migrations\" />
+    <Folder Include="Models\Article\" />
+    <Folder Include="Models\Order\" />
     <Folder Include="wwwroot\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" Version="0.11.4" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="2.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="2.0.2" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="2.0.3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="2.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="2.0.3" />
+    <DotNetCliToolReference Include="Microsoft.EntityFrameworkCore.Tools.DotNet" Version="2.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\eshop.api.order.dal\eshop.api.order.dal.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,118 +1,215 @@
-﻿using System.Linq;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
+using Microsoft.EntityFrameworkCore;
+using eshop.api.order.dal.DBContext;
+using eshop.api.order.dal.Models;
+using eshop.api.order.dal.Services;
 using Newtonsoft.Json.Linq;
-using eshop.api.order.Models;
-using System;
+using Newtonsoft.Json;
+using static eshop.api.order.dal.Services.OrderDBService;
+using eshop.api.order.Kafka;
 
 namespace eshop.api.order.Controllers
 {
-    [Route("api/[controller]")]
+    [Produces("application/json")]
+    [Route("api/Orders")]
     public class OrdersController : Controller
     {
-        private static List<Order> orders = null;
+        private readonly OrderContext _context;
 
-        static OrdersController()
-        {
-            LoadOrdersFromFile();
-        }
+        public bool DBDriven = true;
 
-        private static void LoadOrdersFromFile()
-        {
-            orders = new List<Order>(JsonConvert.DeserializeObject<List<Order>>(System.IO.File.ReadAllText(@"orders.json")));
-        }
+        IOrderService orderService;
 
-        private void WriteToFile()
+        public OrdersController(OrderContext context)
         {
-            try
+            _context = context;
+            if (DBDriven)
             {
-                System.IO.File.WriteAllText(@"orders.json", JsonConvert.SerializeObject(orders));
-            }
-            catch (System.Exception)
-            {
-                throw;
+                orderService = new OrderDBService(_context);
             }
         }
 
+        // GET api/Orders/health
         [HttpGet]
         [Route("health")]
         public IActionResult GetHealth(string health)
         {
-            bool fileExists = System.IO.File.Exists("./orders.json");
-            IActionResult response = fileExists ? Ok("Service is Healthy") : StatusCode(500, "Orders file not available");
+            bool dbConnOk = false;
+            string statusMessage = string.Empty;
+            try
+            {
+                if (_context.CheckConnection())
+                {
+                    dbConnOk = true;
+                    statusMessage = "Order Service is Healthy";
+                }
+
+            }
+            catch (Exception ex)
+            {
+                statusMessage = $"Order database not available - {ex.Message}";
+
+            }
+            IActionResult response = dbConnOk ? Ok("Order Service is Healthy") : StatusCode(500, "Order database not available");
             return response;
         }
 
-        // GET api/orders
+        // GET: api/Orders
         [HttpGet]
         public IActionResult GetOrders()
         {
-            var customerId = Convert.ToString(Request.Query["customerId"]);
-            var custSpecificOrders = customerId == null ? orders : orders.Where(o => o.CustomerId == customerId).ToList();
-            return new ObjectResult(custSpecificOrders);
-        }
-
-        // GET api/orders/5
-        [HttpGet("{orderId}")]
-        public IActionResult GetOrderDetails(string orderId)
-        {
-            string customerId = Convert.ToString(Request.Headers["customerId"]);
-            if (customerId == null)
-            {
-                return BadRequest("Customer Id missing in the header");
-            }
-
-            Order order = orders.Find(o => o.OrderId == orderId && o.CustomerId == customerId);
-
-            if(order == null)
-            {
-                return NotFound($"Order with Id - {orderId} and customer id - {customerId} not found");
-            }
-
-            return new ObjectResult(order);
-            
-        }
-
-        // POST api/values
-        [HttpPost]
-        public IActionResult AddNewOrder([FromBody]JObject value)
-        {
-            string customerId = Convert.ToString(Request.Headers["customerId"]);
-            if (customerId == null)
-            {
-                return BadRequest("Customer Id missing in the header");
-            }
-
-            Order newOrder = null;
             try
             {
-                // create new order object for specific customer
-                newOrder = JsonConvert.DeserializeObject<Order>(value.ToString());
-                newOrder.OrderId = Guid.NewGuid().ToString();
+                string customerId = Convert.ToString(Request.Headers["customerId"]);
+                return new ObjectResult(orderService.GetOrders(customerId));
+            }
+            catch (Exception ex)
+            {
 
-                // add new customer to list
-                orders.Add(newOrder);
-                WriteToFile();
+                return StatusCode(500, $"Error while getting order - {ex.Message}");
             }
-            catch (System.Exception ex)
+        }
+
+        // GET: api/Orders/5
+        [HttpGet("{id}")]
+        public IActionResult GetOrder([FromRoute] string id)
+        {
+            if (!ModelState.IsValid)
             {
-                // log the exception
-                // internal server errror
-                return StatusCode(500, ex.Message);
+                return BadRequest(ModelState);
             }
+            string customerId = Convert.ToString(Request.Headers["customerId"]);
+            var order = orderService.GetOrder(id, customerId);
+
+            if (order == null)
+            {
+                return NotFound("The Order ID was not found");
+            }
+
             JObject successobj = new JObject()
-            {
-                { "StatusMessage", $"Order created successfully for customer id {newOrder.CustomerId}" },
-                { "NewOrderId", newOrder.OrderId.ToString() }
-            };
+                {
+                    { "StatusMessage", $"Order details fetched successfully for order id {id}" },
+                    { "Order",  JsonConvert.SerializeObject(order, Formatting.Indented,
+                                new JsonSerializerSettings() {
+                                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+                                }
+                            )
+                        }
+                };
             return Ok(successobj);
         }
 
+        // POST: api/Orders
         [HttpPost]
-        [Route("{id}/articles")]
-        public IActionResult AddArticlesToOrder(string id, [FromBody]JArray value)
+        public IActionResult AddNewOrder([FromBody] Order order)
         {
+            Order addedOrder;
+            Order newOrder = null;
+            string statusMessage;
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                string customerId = Convert.ToString(Request.Headers["customerId"]);
+                if (customerId == null)
+                {
+                    return BadRequest("Customer Id missing in the header");
+                }
+
+                Order activeOrder = GetActiveOrderForCustomer(customerId);
+
+                if (activeOrder == null)
+                {
+                    // create new order object for specific customer
+                    orderService.InsertOrder(customerId, order, out addedOrder, out statusMessage);
+
+                    // add new customer to list
+                    newOrder = addedOrder;
+                }
+                else
+                {
+                    newOrder = activeOrder;
+                    statusMessage = $"One Order already active for customer id { newOrder.CustomerId}";
+                }
+
+                if(newOrder.OrderedArticles == null)
+                {
+                    newOrder.OrderedArticles = new List<OrderedArticle>();
+                }
+
+                JObject successobj = new JObject()
+                {
+                    { "StatusMessage", statusMessage },
+                    { "Order",  JsonConvert.SerializeObject(newOrder, Formatting.Indented,
+                                new JsonSerializerSettings() {
+                                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+                                }
+                            )
+                        }
+                };
+                return Ok(successobj);
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message + " Inner Exception- " + ex.InnerException.Message);
+            }
+        }
+
+        private Order GetActiveOrderForCustomer(string customerId)
+        {
+            Order activeOrder = _context.Orders.Include(a => a.OrderedArticles).
+                                Where(o => o.CustomerId == customerId && o.Status == Convert.ToInt32(OrderStatus.Active)).SingleOrDefault();
+            return activeOrder;
+        }
+
+
+        // DELETE: api/Orders/5
+        [HttpDelete("{id}")]
+        public IActionResult DeleteOrder([FromRoute] string id)
+        {
+            Order deletedOrder;
+            string statusMessage;
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var status = orderService.DeleteOrder(id, out deletedOrder, out statusMessage);
+                if (deletedOrder == null)
+                {
+                    return NotFound($"Order with id {id} not found");
+                }
+
+                JObject successobj = new JObject()
+                {
+                    { "StatusMessage", statusMessage },
+                    { "DeletedOrder", JObject.Parse(JsonConvert.SerializeObject(deletedOrder)) }
+                };
+                return Ok(successobj);
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [Route("{orderid}/articles")]
+        public IActionResult AddArticlesToOrder(string orderid, [FromBody]JObject value)
+        {
+            Order orderToUpdate = null;
             string customerId = Convert.ToString(Request.Headers["customerId"]);
             if (customerId == null)
             {
@@ -121,13 +218,27 @@ namespace eshop.api.order.Controllers
 
             try
             {
-                // Add articles to specific order object for specific customer
-                List<Article> articles = JsonConvert.DeserializeObject<List<Article>>(value.ToString());
+                // Add article to specific order object for specific customer
+                OrderedArticle article = JsonConvert.DeserializeObject<OrderedArticle>(value.ToString());
+                var status = orderService.AddArticlesToOrder(customerId, orderid, article, out orderToUpdate, out string statusMessage);
 
-                Order orderToUpdate = orders.Find(o => o.CustomerId == customerId && o.OrderId == id);
-                orderToUpdate.Articles.AddRange(articles);
-                
-                WriteToFile();
+                if (orderToUpdate == null)
+                {
+                    return NotFound($"Order with {orderid} for customer {customerId} not found");
+                }
+
+                JObject successobj = new JObject()
+                {
+                    { "StatusMessage", statusMessage },
+                    { "UpdatedOrder", JsonConvert.SerializeObject(orderToUpdate, Formatting.Indented,
+                                new JsonSerializerSettings() {
+                                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+                                }
+                            )
+                        }
+                };
+                return Ok(successobj);
+
             }
             catch (System.Exception ex)
             {
@@ -135,12 +246,12 @@ namespace eshop.api.order.Controllers
                 // internal server errror
                 return StatusCode(500, ex.Message);
             }
-            return Ok($"Articles added successfully for order id {id} and customer id {customerId}");
+
         }
 
         [HttpDelete]
         [Route("{orderid}/articles/{articleid}")]
-        public IActionResult RemoveArticleFromOrder(string orderid, string articleid)
+        public IActionResult RemoveArticleFromOrder(string orderid, int articleid)
         {
             string customerId = Convert.ToString(Request.Headers["customerId"]);
             if (customerId == null)
@@ -150,17 +261,22 @@ namespace eshop.api.order.Controllers
 
             try
             {
-                Order orderToRemoveArticleFrom = orders.Find(o => o.CustomerId == customerId && o.OrderId == orderid);
-
-                Article article = orderToRemoveArticleFrom.Articles.Find(a => a.ArticleId == articleid);
-
-                if (article == null)
+                var status = orderService.RemoveArticlesToOrder(orderid, articleid, customerId, out Order orderToUpdate, out string statusMessage);
+                if (!status)
                 {
-                    return NotFound($"Article id - {articleid} not found for order id - {orderid} and customerId - {customerId}");
+                    return NotFound(statusMessage);
                 }
-                orderToRemoveArticleFrom.Articles.Remove(article);
-
-                WriteToFile();
+                JObject successobj = new JObject()
+                {
+                    { "StatusMessage", statusMessage },
+                    { "UpdatedOrder",  JsonConvert.SerializeObject(orderToUpdate, Formatting.Indented,
+                                new JsonSerializerSettings() {
+                                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+                                }
+                            )
+                        } 
+                };
+                return Ok(successobj);
             }
             catch (System.Exception ex)
             {
@@ -168,89 +284,72 @@ namespace eshop.api.order.Controllers
                 // internal server errror
                 return StatusCode(500, ex.Message);
             }
-            return Ok($"Article with id {articleid} deleted successfully from order id {orderid} and customer id {customerId}");
         }
 
+        // PUT api/Orders/5 , ("{id}")
         [HttpPut]
-        [Route("{orderid}/articles/{articleid}")]
-        public IActionResult UpdateArticleFromOrder(string orderid, string articleid, [FromBody]JObject value)
+        [Route("{orderid}/status/{status}")]
+        public IActionResult UpdateOrderStatus(string orderid, string status)
         {
+            // TODO: this can be used to update status
+            Order updatedOrder;
             string customerId = Convert.ToString(Request.Headers["customerId"]);
             if (customerId == null)
             {
                 return BadRequest("Customer Id missing in the header");
             }
-
             try
             {
-                Order orderToUpdateArticle = orders.Find(o => o.CustomerId == customerId && o.OrderId == orderid);
+                var updateStatus = orderService.UpdateOrderStatus(orderid, customerId, status, out updatedOrder, out string statusMessage);
 
-                Article article = orderToUpdateArticle.Articles.Find(a => a.ArticleId == articleid);
-                if (article == null)
+                if (!updateStatus)
                 {
-                    return NotFound($"Article with id - {articleid} not found for order - {orderid} and customer id- {customerId}");
+                    return StatusCode(500, statusMessage);
                 }
-                int quantity;
-                int.TryParse(value["Quantity"].ToString(), out quantity);
-                article.Quantity = quantity;
+                else
+                {
+                    string articlesJson = GetArticlesJsonString(updatedOrder);
 
-                WriteToFile();
-            }
-            catch (System.Exception ex)
-            {
-                // log the exception
-                // internal server errror
-                return StatusCode(500, ex.Message);
-            }
-            return Ok($"Article with id {articleid} updated quantity successfully from order id {orderid} and customer id {customerId}");
-        }
+                    // push articles json to kafka
+                    Task.Factory.StartNew(() => {
+                        var producer = new OrderProducer();
+                        producer.Produce(articlesJson);
+                    });
 
-        // PUT api/values/5
-        [HttpPut("{id}")]
-        public IActionResult Put(string id, [FromBody]JObject value)
-        {
-            string customerId = Convert.ToString(Request.Headers["customerId"]);
-            if (customerId == null)
-            {
-                return BadRequest("Customer Id missing in the header");
-            }
+                    
 
-            try
-            {
-
-                int index = orders.IndexOf(orders.Find(x => x.OrderId == id));
-                orders.Remove(orders.Find(x => x.OrderId == id));
-                orders.Insert(index, JsonConvert.DeserializeObject<Order>(value.ToString()));
-                WriteToFile();
+                    JObject successobj = new JObject()
+                    {
+                        { "StatusMessage", statusMessage },
+                        { "UpdatedOrder", JsonConvert.SerializeObject(updatedOrder, Formatting.Indented,
+                                new JsonSerializerSettings() {
+                                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+                                }
+                            )
+                        }
+                    };
+                    return Ok(successobj);
+                }
             }
             catch (System.Exception ex)
             {
                 // log error/exception
                 return StatusCode(500, ex.Message);
             }
-            return Ok($"Order with Id - {id} updated successfully");            
         }
 
-        // DELETE api/order/5
-        [HttpDelete("{orderid}")]
-        public IActionResult DeleteOrder(string orderid)
+        private string GetArticlesJsonString(Order order)
         {
-            try
+            List<ArticleStock> articles = new List<ArticleStock>();
+
+            foreach (var item in order.OrderedArticles)
             {
-                Order order = orders.Find(x => x.OrderId == orderid);
-                if (order == null)
-                {
-                    return NotFound($"Order with id {orderid} not found");
-                }
-                orders.Remove(order);
-                WriteToFile();
+                articles.Add(new ArticleStock() { ArticleId = item.ArticleId, ArticleName = item.ArticleName, TotalQuantity = item.Quantity });
             }
-            catch (System.Exception ex)
-            {
-                // log the exception
-                return StatusCode(500, ex.Message);
-            }
-            return Ok($"Order with Id - {orderid} deleted successfully");            
+
+            string json = JsonConvert.SerializeObject(articles, Formatting.Indented);
+            return json;
         }
     }
+
 }

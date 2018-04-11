@@ -1,0 +1,57 @@
+-- Table: public."Orders"
+
+-- DROP TABLE public."Orders";
+
+CREATE TABLE public."Orders"
+(
+    "OrderId" text COLLATE pg_catalog."default" NOT NULL,
+    "CustomerId" text COLLATE pg_catalog."default",
+    "Status" integer,
+    "OrderTotalPrice" double precision,
+    CONSTRAINT "PK_Orders" PRIMARY KEY ("OrderId")
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."Orders"
+    OWNER to "postgres";
+--------------------------------------
+-- Table: public."OrderedArticles"
+
+-- DROP TABLE public."OrderedArticles";
+
+CREATE TABLE public."OrderedArticles"
+(
+    "OrderedArticleId"  SERIAL  NOT NULL,
+    "ArticleId" integer NOT NULL,
+    "OrderId" text COLLATE pg_catalog."default" NOT NULL,
+    "ArticleName" text COLLATE pg_catalog."default",
+    "ArticleDescription" text COLLATE pg_catalog."default",
+    "ArticlePrice" double precision,
+    "TotalPrice" double precision,
+    "ImageUrl" text COLLATE pg_catalog."default",
+    "Quantity" integer NOT NULL,
+    CONSTRAINT "OrderedArticles_pkey" PRIMARY KEY ("OrderedArticleId"),
+    CONSTRAINT "FK_OrderedArticles_Orders_OrderId" FOREIGN KEY ("OrderId")
+        REFERENCES public."Orders" ("OrderId") MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."OrderedArticles"
+    OWNER to "postgres";
+
+-- Index: IX_OrderedArticles_OrderId
+
+-- DROP INDEX public."IX_OrderedArticles_OrderId";
+
+CREATE INDEX "IX_OrderedArticles_OrderId"
+    ON public."OrderedArticles" USING btree
+    ("OrderId" COLLATE pg_catalog."default")
+    TABLESPACE pg_default;

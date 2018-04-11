@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.27428.2005
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "eshop.api.order", "eshop.api.order\eshop.api.order.csproj", "{AC836196-7557-41B8-B2B4-4F1406C4A6F8}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "eshop.api.order.dal", "eshop.api.order.dal\eshop.api.order.dal.csproj", "{5FC62A6F-A016-4218-8FC8-240DAB8D6120}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{AC836196-7557-41B8-B2B4-4F1406C4A6F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AC836196-7557-41B8-B2B4-4F1406C4A6F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AC836196-7557-41B8-B2B4-4F1406C4A6F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5FC62A6F-A016-4218-8FC8-240DAB8D6120}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FC62A6F-A016-4218-8FC8-240DAB8D6120}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FC62A6F-A016-4218-8FC8-240DAB8D6120}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FC62A6F-A016-4218-8FC8-240DAB8D6120}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
