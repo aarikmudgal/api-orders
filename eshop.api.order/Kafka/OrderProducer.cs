@@ -15,7 +15,7 @@ namespace eshop.api.order.Kafka
         {
             var config = new Dictionary<string, object>
             {
-                {"bootstrap.servers", "35.200.142.220:9092" },
+                {"bootstrap.servers", "35.201.187.234:9092" },
                 {"debug", "cgrp" }
             };
             try
