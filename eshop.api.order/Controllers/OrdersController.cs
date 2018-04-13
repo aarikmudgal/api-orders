@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -43,19 +43,16 @@ namespace eshop.api.order.Controllers
             string statusMessage = string.Empty;
             try
             {
-                if (_context.CheckConnection())
-                {
-                    dbConnOk = true;
-                    statusMessage = "Order Service is Healthy";
-                }
+                _context.CheckConnection(out dbConnOk);
+                statusMessage = $"Order service is Healthy";
 
             }
             catch (Exception ex)
             {
-                statusMessage = $"Order database not available - {ex.Message}";
+                statusMessage = $"Order database or service not available - {ex.Message}";
 
             }
-            IActionResult response = dbConnOk ? Ok("Order Service is Healthy") : StatusCode(500, "Order database not available");
+            IActionResult response = dbConnOk ? Ok(statusMessage) : StatusCode(500, statusMessage);
             return response;
         }
 
@@ -140,7 +137,7 @@ namespace eshop.api.order.Controllers
                     statusMessage = $"One Order already active for customer id { newOrder.CustomerId}";
                 }
 
-                if(newOrder.OrderedArticles == null)
+                if (newOrder.OrderedArticles == null)
                 {
                     newOrder.OrderedArticles = new List<OrderedArticle>();
                 }
@@ -274,7 +271,7 @@ namespace eshop.api.order.Controllers
                                     ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
                                 }
                             )
-                        } 
+                        }
                 };
                 return Ok(successobj);
             }
@@ -316,7 +313,7 @@ namespace eshop.api.order.Controllers
                         producer.Produce(articlesJson);
                     });
 
-                    
+
 
                     JObject successobj = new JObject()
                     {
