@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using eshop.api.order.dal.ViewModel;
@@ -22,7 +22,7 @@ namespace eshop.api.order.dal.Services
         public OrderDBService(OrderContext context)
         {
             _context = context;
-            CheckConnection();
+            //CheckConnection();
         }
         private void CheckConnection()
         {
@@ -31,7 +31,7 @@ namespace eshop.api.order.dal.Services
                 _context.Database.GetDbConnection();
                 _context.Database.OpenConnection();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // log db connectivity issue
                 throw;
