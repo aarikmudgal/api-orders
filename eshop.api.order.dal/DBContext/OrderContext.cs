@@ -1,9 +1,10 @@
-﻿using eshop.api.order.dal.Models;
+using eshop.api.order.dal.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Text;
-
+using System.Threading.Tasks;
 
 namespace eshop.api.order.dal.DBContext
 {
@@ -23,18 +24,25 @@ namespace eshop.api.order.dal.DBContext
                 .HasMany(o => o.OrderedArticles)
                 .WithOne(e => e.Order);
         }
-        //ModelBuilder
-        public bool CheckConnection()
+        
+        public void CheckConnection(out bool dbStatusOK)
         {
             try
             {
+
                 this.Database.OpenConnection();
+                this.Database.ExecuteSqlCommand("SELECT 1");
                 this.Database.CloseConnection();
-                return true;
+                dbStatusOK = true;
             }
             catch (Exception ex)
             {
+                dbStatusOK = false;
                 throw ex;
+            }
+            finally
+            {
+                this.Database.CloseConnection();
             }
         }
     }
