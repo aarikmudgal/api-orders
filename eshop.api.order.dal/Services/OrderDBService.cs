@@ -68,7 +68,7 @@ namespace eshop.api.order.dal.Services
         {
             try
             {
-                orderToBeInserted.OrderId = string.Format("OO-"+Guid.NewGuid().ToString().Replace("-",string.Empty).Substring(0,5));
+                orderToBeInserted.OrderId = Guid.NewGuid().ToString();
                 orderToBeInserted.CustomerId = customerId;
                 _context.Orders.Add(orderToBeInserted);
                 int status = _context.SaveChanges();
