@@ -29,7 +29,7 @@ namespace eshop.api.order
             }
             
             // Shows UseCors with CorsPolicyBuilder.
-            app.UseCors(builder => builder.WithOrigins("http://35.200.233.17").AllowAnyMethod().AllowAnyHeader().AllowCredentials());
+            app.UseCors(builder => builder.WithOrigins("http://35.234.109.247").AllowAnyMethod().AllowAnyHeader().AllowCredentials());
 
             app.UseMvc();
         }
